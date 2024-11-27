@@ -1,0 +1,13 @@
+name = "Mekanism Lasers"
+filename = "mekanism_lasers-1.0.9.jar"
+side = "both"
+
+[download]
+hash-format = "sha1"
+hash = "5e77273dc4d30d1d362c85fafa0391f5cd2220cc"
+mode = "metadata:curseforge"
+
+[update]
+[update.curseforge]
+file-id = 5683685
+project-id = 1060096

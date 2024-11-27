@@ -1,0 +1,13 @@
+name = "More Mekanism Processing"
+filename = "MoreMekanismProcessing-1.20.1-4.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/fVa04tKz/versions/bB0Gcmb8/MoreMekanismProcessing-1.20.1-4.1.jar"
+hash-format = "sha1"
+hash = "922600c4af27a4989a8860ff1470dd4b8e119b3c"
+
+[update]
+[update.modrinth]
+mod-id = "fVa04tKz"
+version = "bB0Gcmb8"

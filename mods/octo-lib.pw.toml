@@ -1,0 +1,13 @@
+name = "OctoLib"
+filename = "OctoLib-FORGE-0.4.2+1.20.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/RH2KUdKJ/versions/9dJfM8hR/OctoLib-FORGE-0.4.2%2B1.20.1.jar"
+hash-format = "sha1"
+hash = "d39a7e4d7ebd4e6f427f5c0958b7e2080ba02800"
+
+[update]
+[update.modrinth]
+mod-id = "RH2KUdKJ"
+version = "9dJfM8hR"

@@ -1,0 +1,13 @@
+name = "More Overlays Updated"
+filename = "moreoverlays-1.22.7-mc1.20.2.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/Thy5Pqut/versions/xpC2kCRg/moreoverlays-1.22.7-mc1.20.2.jar"
+hash-format = "sha1"
+hash = "1e7c2eac6a58dfcd6b72a8afb6812fe818e20a80"
+
+[update]
+[update.modrinth]
+mod-id = "Thy5Pqut"
+version = "xpC2kCRg"

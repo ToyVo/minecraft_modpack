@@ -1,0 +1,19 @@
+name = "[EMF] Entity Model Features"
+filename = "entity_model_features_forge_1.20.1-2.2.6.jar"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/4I1XuqiY/versions/SwaXdYpi/entity_model_features_forge_1.20.1-2.2.6.jar"
+hash-format = "sha1"
+hash = "f71c3fa60bb7dc5999965d951569e4db8d23c694"
+
+[update]
+[update.modrinth]
+mod-id = "4I1XuqiY"
+version = "SwaXdYpi"
+
+[option]
+optional = true
+default = false
+description = "required for fresh animations"
+

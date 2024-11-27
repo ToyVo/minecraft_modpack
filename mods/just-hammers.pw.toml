@@ -1,0 +1,13 @@
+name = "Just Hammers"
+filename = "justhammers-forge-2.0.3+mc1.20.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/edU0NbZZ/versions/JafXa7hr/justhammers-forge-2.0.3%2Bmc1.20.1.jar"
+hash-format = "sha1"
+hash = "31acccb1458c1c3c7b5e712a86e4a5ff7b9e95c9"
+
+[update]
+[update.modrinth]
+mod-id = "edU0NbZZ"
+version = "JafXa7hr"

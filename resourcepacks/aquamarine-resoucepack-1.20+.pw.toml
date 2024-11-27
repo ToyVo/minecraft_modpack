@@ -1,0 +1,13 @@
+name = "Aquamarine"
+filename = "Aquamarine [HUD].zip"
+side = "client"
+
+[download]
+url = "https://cdn.modrinth.com/data/vdINSg5D/versions/W7PNCzvR/Aquamarine%20%5BHUD%5D.zip"
+hash-format = "sha1"
+hash = "9d13b3462b13217fe3a377ec32e6046c3fa7e208"
+
+[update]
+[update.modrinth]
+mod-id = "vdINSg5D"
+version = "W7PNCzvR"

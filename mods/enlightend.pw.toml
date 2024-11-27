@@ -1,0 +1,13 @@
+name = "Enlightend"
+filename = "enlightend-5.0.14-1.20.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/SwolYSb8/versions/Y3tfisi2/enlightend-5.0.14-1.20.1.jar"
+hash-format = "sha1"
+hash = "cad5b5b7b569ab55059aba71adadbb5aefc6c77f"
+
+[update]
+[update.modrinth]
+mod-id = "SwolYSb8"
+version = "Y3tfisi2"

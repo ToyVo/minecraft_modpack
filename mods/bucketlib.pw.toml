@@ -1,0 +1,13 @@
+name = "BucketLib"
+filename = "bucketlib-1.20.1-2.3.5.1.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/DItE655o/versions/O4Ow9WAY/bucketlib-1.20.1-2.3.5.1.jar"
+hash-format = "sha1"
+hash = "f57ef61b14f81243bdfcbc37e1d86a63bf0b4ef5"
+
+[update]
+[update.modrinth]
+mod-id = "DItE655o"
+version = "O4Ow9WAY"

@@ -1,0 +1,13 @@
+name = "Jaden's Nether Expansion"
+filename = "Jadens-Nether-Expansion-2.1.0-Forge.jar"
+side = "both"
+
+[download]
+url = "https://cdn.modrinth.com/data/v3UlehfS/versions/qphVrW2u/Jadens-Nether-Expansion-2.1.0-Forge.jar"
+hash-format = "sha1"
+hash = "5492fb8ca31a111823d0f00658993a32691bc508"
+
+[update]
+[update.modrinth]
+mod-id = "v3UlehfS"
+version = "qphVrW2u"
