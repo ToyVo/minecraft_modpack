@@ -170,15 +170,7 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
 }
 
 async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
-    let client = reqwest::Client::new();
-    let response = client
-        .get("https://packwiz.toyvo.dev/index.toml")
-        .send()
-        .await?
-        .error_for_status()?;
-    let mod_files = response
-        .text()
-        .await?
+    let mod_files = fs::read_to_string("index.toml")?
         .parse::<Table>()?
         .get("files")
         .context("couldn't find files array")?
@@ -202,12 +194,7 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mr_mods = Vec::new();
     let mut cf_mods = Vec::new();
     for file in mod_files {
-        let response = client
-            .get(format!("https://packwiz.toyvo.dev/{file}"))
-            .send()
-            .await?
-            .error_for_status()?;
-        let mod_file = response.text().await?.parse::<Table>()?;
+        let mod_file = fs::read_to_string(file)?.parse::<Table>()?;
 
         if let Some(update_section) = mod_file.get("update") {
             match (
@@ -277,6 +264,35 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     Ok(mods)
 }
 
+pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
+    Ok(std::fs::read_dir(".")?
+        .filter_map(|e| {
+            let name = e.unwrap().file_name().into_string().unwrap();
+            if name.starts_with("prism") && name.ends_with(".zip") {
+                Some(name)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<String>>())
+}
+
+fn zip_display() -> Result<Element, anyhow::Error> {
+    let prism_zips = get_prism_zips()?;
+    Ok(rsx! {
+        ul {
+            for zip in prism_zips {
+                li {
+                    a {
+                        href: "{zip}",
+                        "{zip}"
+                    }
+                }
+            }
+        }
+    })
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mods = read_modpack().await?;
@@ -303,6 +319,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     margin: "20px",
                     div { "Modpack info" }
                     div { "Import the appropriate zip file into prism and packwiz will take care of the rest" }
+                    div { "Files hosted " {zip_display()?} }
                     img {
                         max_height: "512px",
                         max_width: "100%",
