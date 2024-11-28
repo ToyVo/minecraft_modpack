@@ -324,7 +324,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         max_height: "512px",
                         max_width: "100%",
                         height: "auto",
-                        src: "/prism.png",
+                        src: "/prism-import.png",
                         alt: "import prism instance"
                     }
                     div {
@@ -342,6 +342,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         background:"#666",
                         padding:"10px",
                         "\"$INST_JAVA\" -jar packwiz-installer-bootstrap.jar https://packwiz.toyvo.dev/pack.toml"
+                    }
+                    img {
+                        max_height: "512px",
+                        max_width: "100%",
+                        height: "auto",
+                        src: "/prism-settings.png",
+                        alt: "Setup packwiz"
                     }
                     div {
                         "Mods included: "
