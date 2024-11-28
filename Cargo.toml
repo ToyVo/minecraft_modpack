@@ -1,0 +1,17 @@
+[package]
+name = "minecraft_modpack"
+version = "0.1.0"
+authors = ["Collin Diekvoss <collin@diekvoss.com>"]
+edition = "2021"
+repository = "https://github.com/toyvo/minecraft_modpack"
+
+[dependencies]
+anyhow = "1"
+dioxus = "0"
+dioxus-ssr = "0"
+regex = "1"
+reqwest = { version = "0", features = ["json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+toml = "0"

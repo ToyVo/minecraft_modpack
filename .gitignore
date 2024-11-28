@@ -1,2 +1,27 @@
 result
+debug
+target
+**/*.rs.bk
+.idea
+*.iml
+result*
+*.log
+*~
+
+# cachix tmp file
+store-path-pre-build
+
+# Devenv
+.devenv*
+devenv.local.nix
+
+# direnv
+.direnv
+
+.env
+
+# pre-commit
+.pre-commit-config.yaml
+
+template/flake.lock
 .DS_Store
