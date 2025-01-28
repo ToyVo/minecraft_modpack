@@ -1,14 +1,16 @@
 use anyhow::Context;
-use dioxus::prelude::*;
+use clap::Parser;
 use regex::Regex;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::env::var;
 use std::fs;
+use std::path::PathBuf;
 use toml::Table;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 struct ModpackInfo {
     pub name: String,
     pub side: String,
@@ -89,8 +91,8 @@ async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, any
 
 async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mods = Vec::new();
-    let forge_api_key = var("FORGE_API_KEY")?;
-    if !mod_ids.is_empty() {
+    let forge_api_key = var("FORGE_API_KEY").unwrap_or_default();
+    if !mod_ids.is_empty() && !forge_api_key.is_empty() {
         let client = reqwest::Client::new();
         let response = client
             .post("https://api.curseforge.com/v1/mods")
@@ -165,12 +167,14 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
                 game_versions,
             })
         }
+    } else {
+        eprintln!("Skipping curseforge mods")
     }
     Ok(mods)
 }
 
-async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
-    let mod_files = fs::read_to_string("index.toml")?
+async fn read_modpack(dir: &PathBuf) -> Result<Vec<ModpackInfo>, anyhow::Error> {
+    let mod_files = fs::read_to_string(&dir.join("index.toml"))?
         .parse::<Table>()?
         .get("files")
         .context("couldn't find files array")?
@@ -194,7 +198,7 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mr_mods = Vec::new();
     let mut cf_mods = Vec::new();
     for file in mod_files {
-        let mod_file = fs::read_to_string(file)?.parse::<Table>()?;
+        let mod_file = fs::read_to_string(&dir.join(file))?.parse::<Table>()?;
 
         if let Some(update_section) = mod_file.get("update") {
             match (
@@ -264,8 +268,8 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     Ok(mods)
 }
 
-pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
-    Ok(std::fs::read_dir(".")?
+pub fn get_prism_zips(dir: &PathBuf) -> Result<Vec<String>, anyhow::Error> {
+    Ok(std::fs::read_dir(dir)?
         .filter_map(|e| {
             let name = e.unwrap().file_name().into_string().unwrap();
             if name.starts_with("prism") && name.ends_with(".zip") {
@@ -277,148 +281,27 @@ pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
         .collect::<Vec<String>>())
 }
 
-fn zip_display() -> Result<Element, anyhow::Error> {
-    let prism_zips = get_prism_zips()?;
-    Ok(rsx! {
-        ul {
-            for zip in prism_zips {
-                li {
-                    a {
-                        href: "{zip}",
-                        "{zip}"
-                    }
-                }
-            }
-        }
-    })
+/// Simple program to cache info for modpack since curse requires an api key env: FORGE_API_KEY
+#[derive(Parser, Debug)]
+struct Args {
+    #[arg(short, long)]
+    /// output file
+    output: PathBuf,
+
+    #[arg(short, long)]
+    /// input directory
+    input: PathBuf,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let mods = read_modpack().await?;
-    let index = format!(
-        r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-    <link rel="manifest" href="/site.webmanifest">
-    <title>Minecraft Modpack</title>
-    <script>0</script>
-</head>
-{}
-</html>"#,
-        dioxus_ssr::render_element(rsx! {
-            body {
-                width: "100vw",
-                height: "100vh",
-                margin: "0",
-                display: "flex",
-                flex_direction: "column",
-                font_family: "'Noto Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-                div {
-                    margin: "20px",
-                    div { "Modpack info" }
-                    div { "Import the appropriate zip file into prism and packwiz will take care of the rest" }
-                    div { "Files hosted " {zip_display()?} }
-                    img {
-                        max_height: "512px",
-                        max_width: "100%",
-                        height: "auto",
-                        src: "/prism-import.png",
-                        alt: "import prism instance"
-                    }
-                    div {
-                        "To do this your self, download the packwiz bootstrap jar from "
-                        a {
-                            href: "https://github.com/packwiz/packwiz-installer-bootstrap/releases",
-                            "Github Releases"
-                        }
-                        " and place it within the (.)minecraft directory of a newly created prism instance."
-                    }
-                    div {"Go to Edit Instance -> Settings -> Custom commands, then check the Custom Commands box and paste the following command into the pre-launch command field:"}
-                    div {
-                        font_family: "monospace",
-                        font_size: "14px",
-                        background:"#666",
-                        padding:"10px",
-                        "\"$INST_JAVA\" -jar packwiz-installer-bootstrap.jar https://packwiz.toyvo.dev/pack.toml"
-                    }
-                    img {
-                        max_height: "512px",
-                        max_width: "100%",
-                        height: "auto",
-                        src: "/prism-settings.png",
-                        alt: "Setup packwiz"
-                    }
-                    div {
-                        "Mods included: "
-                        div {
-                            display: "grid",
-                            width: "100%",
-                            grid_template_columns: "1fr 1fr auto auto",
-                            gap: "12px",
-                            div {
-                                "Mod Name"
-                            }
-                            div {
-                                "Side"
-                            }
-                            div {
-                                "Minecraft Versions"
-                            }
-                            div {
-                                "Loader"
-                            }
-                            for item in mods {
-                                a {
-                                    href: "{item.url}",
-                                    "{item.name}"
-                                }
-                                div {
-                                    "{item.side}"
-                                }
-                                div {
-                                    display: "flex",
-                                    flex_flow: "row wrap",
-                                    align_content: "start",
-                                    gap: "4px",
-                                    for version in &item.game_versions {
-                                       div {
-                                            background: "grey",
-                                            border_radius: "100px",
-                                            padding: "4px",
-                                            text_wrap: "nowrap",
-                                            "{version}"
-                                       }
-                                    }
-                                }
-                                div {
-                                    display: "flex",
-                                    flex_flow: "row wrap",
-                                    align_content: "start",
-                                    gap: "4px",
-                                    for loader in &item.loaders {
-                                       div {
-                                            background: "grey",
-                                            border_radius: "100px",
-                                            padding: "4px",
-                                            text_wrap: "nowrap",
-                                            "{loader}"
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        })
-    );
-    fs::write("index.html", index)?;
+    let args = Args::parse();
+    let mods = read_modpack(&args.input).await?;
+    let zips = get_prism_zips(&args.input)?;
+    let json = json!({
+        "mods": mods,
+        "zips": zips,
+    });
+    fs::write(&args.output, serde_json::to_string(&json)?)?;
     Ok(())
 }
