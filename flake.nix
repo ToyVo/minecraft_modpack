@@ -112,6 +112,9 @@
                     ];
                   cargoLock.lockFile = ./Cargo.lock;
                   PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+                  postFixup = ''
+                    wrapProgram $out/bin/$pname --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ pkgs.openssl ]}
+                  '';
                 };
               minecraft_modpack =
                 let
