@@ -159,7 +159,7 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
     Ok(mods)
 }
 
-async fn read_modpack() -> Vec<ModpackInfo> {
+async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mod_files = fs::read_to_string("modpack/index.toml")
         .unwrap()
         .parse::<Table>()
@@ -240,17 +240,13 @@ async fn read_modpack() -> Vec<ModpackInfo> {
         }
     }
 
-    match get_modrinth_mods(mr_mods).await {
-        Ok(mut modrinth_mods) => mods.append(&mut modrinth_mods),
-        Err(e) => eprintln!("error getting modrinth mods: {e:?}"),
-    };
-    match get_curseforge_mods(cf_mods).await {
-        Ok(mut curseforge_mods) => mods.append(&mut curseforge_mods),
-        Err(e) => eprintln!("error getting curseforge mods: {e:?}"),
-    };
+    let mut modrinth_mods = get_modrinth_mods(mr_mods).await?;
+    mods.append(&mut modrinth_mods);
+    let mut curseforge_mods = get_curseforge_mods(cf_mods).await?;
+    mods.append(&mut curseforge_mods);
 
     mods.sort_by(|a, b| a.name.cmp(&b.name).then(a.side.cmp(&b.side)));
-    mods
+    Ok(mods)
 }
 
 pub fn get_prism_zips() -> Vec<String> {
@@ -271,12 +267,18 @@ pub fn get_prism_zips() -> Vec<String> {
 async fn main() {
     println!("cargo::rerun-if-changed=modpack");
 
-    let mods = read_modpack().await;
-    let zips = get_prism_zips();
-    let json = json!({
+    match read_modpack().await {
+        Ok(mods) => {
+            let zips = get_prism_zips();
+            let json = json!({
         "mods": mods,
         "zips": zips,
     });
-    let json_string = serde_json::to_string(&json).unwrap();
-    fs::write("assets/modpack_generated.json", json_string).unwrap();
+            let json_string = serde_json::to_string(&json).unwrap();
+            fs::write("assets/modpack_generated.json", json_string).unwrap();
+        }
+        Err(e) => {
+            eprintln!("error fetching mods {e}");
+        }
+    }
 }
