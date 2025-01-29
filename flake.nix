@@ -111,6 +111,7 @@
                       pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
                     ];
                   cargoLock.lockFile = ./Cargo.lock;
+                  PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
                 };
               minecraft_modpack =
                 let
