@@ -69,11 +69,7 @@
           };
           formatter = pkgs.nixfmt-rfc-style;
 
-          packages =
-            let
-              rev = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
-            in
-            rec {
+          packages = rec {
               rustToolchain = (
                 pkgs.rust-bin.stable.latest.default.override {
                   extensions = [
@@ -84,42 +80,10 @@
                   targets = [ "wasm32-unknown-unknown" ];
                 }
               );
-              cache_modpack =
+              default =
                 let
-                  cargoToml = builtins.fromTOML (builtins.readFile ./cache_modpack/Cargo.toml);
-                in
-                pkgs.rustPlatform.buildRustPackage {
-                  pname = cargoToml.package.name;
-                  version = "${cargoToml.package.version}-${rev}";
-                  src = ./.;
-                  strictDeps = true;
-                  nativeBuildInputs = with pkgs; [
-                    rustToolchain
-                    openssl
-                    libiconv
-                    pkg-config
-                    rustPlatform.bindgenHook
-                    makeWrapper
-                  ];
-                  buildInputs =
-                    with pkgs;
-                    [
-                      openssl
-                      libiconv
-                      pkg-config
-                    ]
-                    ++ lib.optionals pkgs.stdenv.isDarwin [
-                      pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
-                    ];
-                  cargoLock.lockFile = ./Cargo.lock;
-                  PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
-                  postFixup = ''
-                    wrapProgram $out/bin/$pname --prefix LD_LIBRARY_PATH : ${lib.makeLibraryPath [ pkgs.openssl ]}
-                  '';
-                };
-              minecraft_modpack =
-                let
-                  cargoToml = builtins.fromTOML (builtins.readFile ./minecraft_modpack/Cargo.toml);
+                  rev = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
+                  cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
                 in
                 pkgs.rustPlatform.buildRustPackage {
                   pname = cargoToml.package.name;
@@ -134,7 +98,6 @@
                     pkg-config
                     wasm-bindgen-cli
                     rustPlatform.bindgenHook
-                    cache_modpack
                   ];
                   buildInputs =
                     with pkgs;
@@ -147,7 +110,6 @@
                       pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
                     ];
                   buildPhase = ''
-                    cache_modpack -i modpack -o minecraft_modpack/assets/modpack.json
                     dx build --package minecraft_modpack --release --platform web --verbose --trace
                   '';
                   installPhase = ''
@@ -159,7 +121,6 @@
                   '';
                   cargoLock.lockFile = ./Cargo.lock;
                 };
-              default = minecraft_modpack;
             };
           devshells.default = {
             imports = [

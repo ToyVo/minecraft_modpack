@@ -24,8 +24,16 @@ fn main() {
 fn App() -> Element {
     // Build cool things ✌️
     let info = use_resource(|| async move {
-        let modpack_json = asset!("/assets/modpack.json");
-        let url = format!("http://localhost:8080{}", modpack_json.resolve().to_str().unwrap());
+        let modpack_json = asset!("/assets/modpack_generated.json");
+        let base_url = if cfg!(debug_assertions) {
+            "http://localhost:8080"
+        } else {
+            "https://packwiz.toyvo.dev"
+        };
+        let url = format!(
+            "{base_url}{}",
+            modpack_json.resolve().to_str().unwrap()
+        );
         let response = reqwest::get(url).await.unwrap().error_for_status().unwrap();
         response.json::<ModPackInfo>().await.unwrap()
     });

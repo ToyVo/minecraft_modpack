@@ -1,5 +1,4 @@
 use anyhow::Context;
-use clap::Parser;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -7,7 +6,6 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::env::var;
 use std::fs;
-use std::path::PathBuf;
 use toml::Table;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
@@ -42,6 +40,7 @@ async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, any
         );
         let response = reqwest::get(url).await?.error_for_status()?;
         let data = response.json::<Vec<Value>>().await?;
+        let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$")?;
         for item in data {
             let name = item.get("title").unwrap().as_str().unwrap().to_string();
             let slug = item.get("slug").unwrap().as_str().unwrap().to_string();
@@ -66,7 +65,6 @@ async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, any
                 .collect::<Vec<String>>();
             loaders.sort();
 
-            let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$")?;
             let mut game_versions = item
                 .get("game_versions")
                 .unwrap()
@@ -173,8 +171,8 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
     Ok(mods)
 }
 
-async fn read_modpack(dir: &PathBuf) -> Result<Vec<ModpackInfo>, anyhow::Error> {
-    let mod_files = fs::read_to_string(&dir.join("index.toml"))?
+async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
+    let mod_files = fs::read_to_string("modpack/index.toml")?
         .parse::<Table>()?
         .get("files")
         .context("couldn't find files array")?
@@ -198,7 +196,7 @@ async fn read_modpack(dir: &PathBuf) -> Result<Vec<ModpackInfo>, anyhow::Error> 
     let mut mr_mods = Vec::new();
     let mut cf_mods = Vec::new();
     for file in mod_files {
-        let mod_file = fs::read_to_string(&dir.join(file))?.parse::<Table>()?;
+        let mod_file = fs::read_to_string(format!("modpack/{file}"))?.parse::<Table>()?;
 
         if let Some(update_section) = mod_file.get("update") {
             match (
@@ -268,8 +266,8 @@ async fn read_modpack(dir: &PathBuf) -> Result<Vec<ModpackInfo>, anyhow::Error> 
     Ok(mods)
 }
 
-pub fn get_prism_zips(dir: &PathBuf) -> Result<Vec<String>, anyhow::Error> {
-    Ok(std::fs::read_dir(dir)?
+pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
+    Ok(fs::read_dir("modpack")?
         .filter_map(|e| {
             let name = e.unwrap().file_name().into_string().unwrap();
             if name.starts_with("prism") && name.ends_with(".zip") {
@@ -281,27 +279,16 @@ pub fn get_prism_zips(dir: &PathBuf) -> Result<Vec<String>, anyhow::Error> {
         .collect::<Vec<String>>())
 }
 
-/// Simple program to cache info for modpack since curse requires an api key env: FORGE_API_KEY
-#[derive(Parser, Debug)]
-struct Args {
-    #[arg(short, long)]
-    /// output file
-    output: PathBuf,
-
-    #[arg(short, long)]
-    /// input directory
-    input: PathBuf,
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let args = Args::parse();
-    let mods = read_modpack(&args.input).await?;
-    let zips = get_prism_zips(&args.input)?;
+    println!("cargo::rerun-if-changed=modpack");
+    
+    let mods = read_modpack().await?;
+    let zips = get_prism_zips()?;
     let json = json!({
         "mods": mods,
         "zips": zips,
     });
-    fs::write(&args.output, serde_json::to_string(&json)?)?;
+    fs::write("assets/modpack_generated.json", serde_json::to_string(&json)?)?;
     Ok(())
 }
