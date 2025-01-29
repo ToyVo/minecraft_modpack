@@ -10,6 +10,7 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     rust-overlay.url = "github:oxalica/rust-overlay";
+    nixpkgs-dioxus.url = "github:CathalMullan/nixpkgs/dioxus-cli-v0.6.2";
   };
 
   nixConfig = {
@@ -61,66 +62,100 @@
             inherit system;
             overlays = [
               inputs.rust-overlay.overlays.default
+              (final: prev: {
+                dioxus-cli = inputs.nixpkgs-dioxus.legacyPackages.${prev.system}.dioxus-cli;
+              })
             ];
           };
           formatter = pkgs.nixfmt-rfc-style;
 
-          packages = rec {
-            rustToolchain = (
-              pkgs.rust-bin.stable.latest.default.override {
-                extensions = [
-                  "rust-src"
-                  "rust-analyzer"
-                  "clippy"
-                ];
-                targets = [ "wasm32-unknown-unknown" ];
-              }
-            );
-            dioxus-cli = pkgs.callPackage ./dioxus-cli.nix {};
-            default =
-              let
-                cargoToml = builtins.fromTOML (builtins.readFile ./minecraft_modpack/Cargo.toml);
-                rev = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
-              in
-              pkgs.rustPlatform.buildRustPackage {
-                pname = cargoToml.package.name;
-                version = "${cargoToml.package.version}-${rev}";
-                src = ./.;
-                strictDeps = true;
-                nativeBuildInputs = with pkgs; [
-                  dioxus-cli
-                  rustToolchain
-                  openssl
-                  libiconv
-                  pkg-config
-                  wasm-bindgen-cli
-                  binaryen
-                  rustPlatform.bindgenHook
-                ];
-                buildInputs =
-                  with pkgs;
-                  [
+          packages =
+            let
+              rev = toString (self.shortRev or self.dirtyShortRev or self.lastModified or "unknown");
+            in
+            rec {
+              rustToolchain = (
+                pkgs.rust-bin.stable.latest.default.override {
+                  extensions = [
+                    "rust-src"
+                    "rust-analyzer"
+                    "clippy"
+                  ];
+                  targets = [ "wasm32-unknown-unknown" ];
+                }
+              );
+              cache_modpack =
+                let
+                  cargoToml = builtins.fromTOML (builtins.readFile ./cache_modpack/Cargo.toml);
+                in
+                pkgs.rustPlatform.buildRustPackage {
+                  pname = cargoToml.package.name;
+                  version = "${cargoToml.package.version}-${rev}";
+                  src = ./.;
+                  strictDeps = true;
+                  nativeBuildInputs = with pkgs; [
+                    rustToolchain
                     openssl
                     libiconv
                     pkg-config
-                  ]
-                  ++ lib.optionals pkgs.stdenv.isDarwin [
-                    pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+                    rustPlatform.bindgenHook
                   ];
-                buildPhase = ''
-                  cargo run --package cache_modpack -- -i modpack -o minecraft_modpack/assets/modpack.json
-                  dx build --package minecraft_modpack --release --platform web --verbose --trace
-                '';
-                installPhase = ''
-                  mkdir -p $out
-                  cp -r target/dx/$pname/release/web/public/* $out
-                  cp $src/CNAME $out
-                  cp -r $src/modpack/* $out
-                  cp $out/index.html $out/404.html
-                '';
-                cargoLock.lockFile = ./Cargo.lock;
-              };
-          };
+                  buildInputs =
+                    with pkgs;
+                    [
+                      openssl
+                      libiconv
+                      pkg-config
+                    ]
+                    ++ lib.optionals pkgs.stdenv.isDarwin [
+                      pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+                    ];
+                  cargoLock.lockFile = ./Cargo.lock;
+                };
+              minecraft_modpack =
+                let
+                  cargoToml = builtins.fromTOML (builtins.readFile ./minecraft_modpack/Cargo.toml);
+                in
+                pkgs.rustPlatform.buildRustPackage {
+                  pname = cargoToml.package.name;
+                  version = "${cargoToml.package.version}-${rev}";
+                  src = ./.;
+                  strictDeps = true;
+                  nativeBuildInputs = with pkgs; [
+                    dioxus-cli
+                    rustToolchain
+                    openssl
+                    libiconv
+                    pkg-config
+                    wasm-bindgen-cli
+                    rustPlatform.bindgenHook
+                    cache_modpack
+                  ];
+                  buildInputs =
+                    with pkgs;
+                    [
+                      openssl
+                      libiconv
+                      pkg-config
+                    ]
+                    ++ lib.optionals pkgs.stdenv.isDarwin [
+                      pkgs.darwin.apple_sdk.frameworks.SystemConfiguration
+                    ];
+                  buildPhase = ''
+                    cache_modpack -i modpack -o minecraft_modpack/assets/modpack.json
+                    dx build --package minecraft_modpack --release --platform web --verbose --trace
+                  '';
+                  installPhase = ''
+                    mkdir -p $out
+                    cp -r target/dx/$pname/release/web/public/* $out
+                    cp $src/CNAME $out
+                    cp -r $src/modpack/* $out
+                    cp $out/index.html $out/404.html
+                  '';
+                  cargoLock.lockFile = ./Cargo.lock;
+                };
+              default = minecraft_modpack;
+            };
           devshells.default = {
             imports = [
               "${devshell}/extra/language/c.nix"
@@ -140,14 +175,14 @@
 
             commands = [
               {
-                package = self'.packages.dioxus-cli;
+                package = pkgs.dioxus-cli;
               }
             ];
 
             packages =
               with pkgs;
               [
-                self'.packages.dioxus-cli
+                dioxus-cli
                 self'.packages.rustToolchain
                 pkg-config
                 rustPlatform.bindgenHook
