@@ -99,6 +99,7 @@
                     libiconv
                     pkg-config
                     rustPlatform.bindgenHook
+                    makeWrapper
                   ];
                   buildInputs =
                     with pkgs;
