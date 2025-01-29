@@ -30,16 +30,16 @@ fn sort_game_versions(game_versions: &mut [String]) {
     });
 }
 
-async fn get_modrinth_mods(mod_ids: Vec<String>) -> Vec<ModpackInfo> {
+async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mods = Vec::new();
     if !mod_ids.is_empty() {
         let url = format!(
             "https://api.modrinth.com/v2/projects?ids=[\"{}\"]",
             mod_ids.join("\",\"")
         );
-        let response = reqwest::get(url).await.unwrap().error_for_status().unwrap();
-        let data = response.json::<Vec<Value>>().await.unwrap();
-        let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$").unwrap();
+        let response = reqwest::get(url).await?.error_for_status()?;
+        let data = response.json::<Vec<Value>>().await?;
+        let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$")?;
         for item in data {
             let name = item.get("title").unwrap().as_str().unwrap().to_string();
             let slug = item.get("slug").unwrap().as_str().unwrap().to_string();
@@ -83,10 +83,10 @@ async fn get_modrinth_mods(mod_ids: Vec<String>) -> Vec<ModpackInfo> {
             })
         }
     }
-    mods
+    Ok(mods)
 }
 
-async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Vec<ModpackInfo> {
+async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mods = Vec::new();
     let forge_api_key = var("FORGE_API_KEY").unwrap_or_default();
     if !mod_ids.is_empty() && !forge_api_key.is_empty() {
@@ -99,10 +99,10 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Vec<ModpackInfo> {
             }))
             .send()
             .await
-            .unwrap()
+            ?
             .error_for_status()
-            .unwrap();
-        let response = response.json::<Value>().await.unwrap();
+            ?;
+        let response = response.json::<Value>().await?;
         let data = response.get("data").unwrap().as_array().unwrap();
         for item in data {
             let name = item.get("name").unwrap().as_str().unwrap().to_string();
@@ -156,7 +156,7 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Vec<ModpackInfo> {
     } else {
         eprintln!("Skipping curseforge mods")
     }
-    mods
+    Ok(mods)
 }
 
 async fn read_modpack() -> Vec<ModpackInfo> {
@@ -240,12 +240,14 @@ async fn read_modpack() -> Vec<ModpackInfo> {
         }
     }
 
-    println!("looking up modrinth mods");
-    let mut modrinth_mods = get_modrinth_mods(mr_mods).await;
-    mods.append(&mut modrinth_mods);
-    println!("looking up curseforge mods");
-    let mut curseforge_mods = get_curseforge_mods(cf_mods).await;
-    mods.append(&mut curseforge_mods);
+    match get_modrinth_mods(mr_mods).await {
+        Ok(mut modrinth_mods) => mods.append(&mut modrinth_mods),
+        Err(e) => eprintln!("error getting modrinth mods: {e:?}"),
+    };
+    match get_curseforge_mods(cf_mods).await {
+        Ok(mut curseforge_mods) => mods.append(&mut curseforge_mods),
+        Err(e) => eprintln!("error getting curseforge mods: {e:?}"),
+    };
 
     mods.sort_by(|a, b| a.name.cmp(&b.name).then(a.side.cmp(&b.side)));
     mods
