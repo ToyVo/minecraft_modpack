@@ -1,4 +1,3 @@
-use anyhow::Context;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -31,16 +30,16 @@ fn sort_game_versions(game_versions: &mut [String]) {
     });
 }
 
-async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, anyhow::Error> {
+async fn get_modrinth_mods(mod_ids: Vec<String>) -> Vec<ModpackInfo> {
     let mut mods = Vec::new();
     if !mod_ids.is_empty() {
         let url = format!(
             "https://api.modrinth.com/v2/projects?ids=[\"{}\"]",
             mod_ids.join("\",\"")
         );
-        let response = reqwest::get(url).await?.error_for_status()?;
-        let data = response.json::<Vec<Value>>().await?;
-        let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$")?;
+        let response = reqwest::get(url).await.unwrap().error_for_status().unwrap();
+        let data = response.json::<Vec<Value>>().await.unwrap();
+        let re = Regex::new(r"^1\.[0-9]+(\.[0-9]+)?$").unwrap();
         for item in data {
             let name = item.get("title").unwrap().as_str().unwrap().to_string();
             let slug = item.get("slug").unwrap().as_str().unwrap().to_string();
@@ -84,10 +83,10 @@ async fn get_modrinth_mods(mod_ids: Vec<String>) -> Result<Vec<ModpackInfo>, any
             })
         }
     }
-    Ok(mods)
+    mods
 }
 
-async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyhow::Error> {
+async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Vec<ModpackInfo> {
     let mut mods = Vec::new();
     let forge_api_key = var("FORGE_API_KEY").unwrap_or_default();
     if !mod_ids.is_empty() && !forge_api_key.is_empty() {
@@ -99,34 +98,23 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
                 "modIds": mod_ids,
             }))
             .send()
-            .await?
-            .error_for_status()?;
-        let response = response.json::<Value>().await?;
-        let data = response
-            .get("data")
-            .context("can't find data")?
-            .as_array()
-            .context("couldn't get as array")?;
+            .await
+            .unwrap()
+            .error_for_status()
+            .unwrap();
+        let response = response.json::<Value>().await.unwrap();
+        let data = response.get("data").unwrap().as_array().unwrap();
         for item in data {
-            let name = item
-                .get("name")
-                .context("Can't find name")?
-                .as_str()
-                .context("Can't parse name as str")?
-                .to_string();
+            let name = item.get("name").unwrap().as_str().unwrap().to_string();
             let url = item
                 .get("links")
-                .context("Can't find links")?
+                .unwrap()
                 .get("websiteUrl")
-                .context("Can't find url")?
+                .unwrap()
                 .as_str()
-                .context("Can't parse url as str")?
+                .unwrap()
                 .to_string();
-            let latest_files_indexes = item
-                .get("latestFilesIndexes")
-                .context("Can't find latestFilesIndexes")?
-                .as_array()
-                .context("Can't get as array")?;
+            let latest_files_indexes = item.get("latestFilesIndexes").unwrap().as_array().unwrap();
             let mut game_versions = HashSet::new();
             let mut mod_loaders = HashSet::new();
             for index in latest_files_indexes {
@@ -168,16 +156,18 @@ async fn get_curseforge_mods(mod_ids: Vec<i64>) -> Result<Vec<ModpackInfo>, anyh
     } else {
         eprintln!("Skipping curseforge mods")
     }
-    Ok(mods)
+    mods
 }
 
-async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
-    let mod_files = fs::read_to_string("modpack/index.toml")?
-        .parse::<Table>()?
+async fn read_modpack() -> Vec<ModpackInfo> {
+    let mod_files = fs::read_to_string("modpack/index.toml")
+        .unwrap()
+        .parse::<Table>()
+        .unwrap()
         .get("files")
-        .context("couldn't find files array")?
+        .unwrap()
         .as_array()
-        .context("couldn't parse into array")?
+        .unwrap()
         .iter()
         .filter_map(|file| {
             if let (Some(name), Some(metafile)) = (
@@ -196,7 +186,10 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
     let mut mr_mods = Vec::new();
     let mut cf_mods = Vec::new();
     for file in mod_files {
-        let mod_file = fs::read_to_string(format!("modpack/{file}"))?.parse::<Table>()?;
+        let mod_file = fs::read_to_string(format!("modpack/{file}"))
+            .unwrap()
+            .parse::<Table>()
+            .unwrap();
 
         if let Some(update_section) = mod_file.get("update") {
             match (
@@ -206,17 +199,17 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
                 (Some(curseforge_section), None) => {
                     let mod_id = curseforge_section
                         .get("project-id")
-                        .context("couldn't find project id")?
+                        .unwrap()
                         .as_integer()
-                        .context("Can't parse project id as int")?;
+                        .unwrap();
                     cf_mods.push(mod_id);
                 }
                 (None, Some(modrinth_section)) => {
                     let mod_id = modrinth_section
                         .get("mod-id")
-                        .context("couldn't find mod id")?
+                        .unwrap()
                         .as_str()
-                        .context("Can't parse mod id as str")?
+                        .unwrap()
                         .to_string();
                     mr_mods.push(mod_id);
                 }
@@ -226,25 +219,15 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
             }
         } else {
             // Hosted elsewhere
-            let name = mod_file
-                .get("name")
-                .context("can't find name")?
-                .as_str()
-                .context("can't parse name to str")?
-                .to_string();
-            let side = mod_file
-                .get("side")
-                .context("can't find side")?
-                .as_str()
-                .context("can't parse side to str")?
-                .to_string();
+            let name = mod_file.get("name").unwrap().as_str().unwrap().to_string();
+            let side = mod_file.get("side").unwrap().as_str().unwrap().to_string();
             let url = mod_file
                 .get("download")
-                .context("can't find download")?
+                .unwrap()
                 .get("url")
-                .context("can't find url")?
+                .unwrap()
                 .as_str()
-                .context("cant parse url as str")?
+                .unwrap()
                 .to_string();
 
             mods.push(ModpackInfo {
@@ -257,17 +240,20 @@ async fn read_modpack() -> Result<Vec<ModpackInfo>, anyhow::Error> {
         }
     }
 
-    let mut modrinth_mods = get_modrinth_mods(mr_mods).await?;
+    println!("looking up modrinth mods");
+    let mut modrinth_mods = get_modrinth_mods(mr_mods).await;
     mods.append(&mut modrinth_mods);
-    let mut curseforge_mods = get_curseforge_mods(cf_mods).await?;
+    println!("looking up curseforge mods");
+    let mut curseforge_mods = get_curseforge_mods(cf_mods).await;
     mods.append(&mut curseforge_mods);
 
     mods.sort_by(|a, b| a.name.cmp(&b.name).then(a.side.cmp(&b.side)));
-    Ok(mods)
+    mods
 }
 
-pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
-    Ok(fs::read_dir("modpack")?
+pub fn get_prism_zips() -> Vec<String> {
+    fs::read_dir("modpack")
+        .unwrap()
         .filter_map(|e| {
             let name = e.unwrap().file_name().into_string().unwrap();
             if name.starts_with("prism") && name.ends_with(".zip") {
@@ -276,19 +262,19 @@ pub fn get_prism_zips() -> Result<Vec<String>, anyhow::Error> {
                 None
             }
         })
-        .collect::<Vec<String>>())
+        .collect::<Vec<String>>()
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() {
     println!("cargo::rerun-if-changed=modpack");
-    
-    let mods = read_modpack().await?;
-    let zips = get_prism_zips()?;
+
+    let mods = read_modpack().await;
+    let zips = get_prism_zips();
     let json = json!({
         "mods": mods,
         "zips": zips,
     });
-    fs::write("assets/modpack_generated.json", serde_json::to_string(&json)?)?;
-    Ok(())
+    let json_string = serde_json::to_string(&json).unwrap();
+    fs::write("assets/modpack_generated.json", json_string).unwrap();
 }

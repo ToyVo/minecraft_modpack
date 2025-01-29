@@ -30,10 +30,7 @@ fn App() -> Element {
         } else {
             "https://packwiz.toyvo.dev"
         };
-        let url = format!(
-            "{base_url}{}",
-            modpack_json.resolve().to_str().unwrap()
-        );
+        let url = format!("{base_url}{}", modpack_json.resolve().to_str().unwrap());
         let response = reqwest::get(url).await.unwrap().error_for_status().unwrap();
         response.json::<ModPackInfo>().await.unwrap()
     });
